@@ -4,40 +4,45 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
-<title>しっかり！おこづかいライフ（完全デモ版）</title>
+<title>しっかり！おこづかいライフ</title>
+
 <style>
-body {
+html, body {
   margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* 📱 iPhoneでも全画面にフィット */
+body {
   font-family: "Rounded Mplus 1c", "Yu Gothic", sans-serif;
-  background: url('bg/default.jpg') no-repeat center center;
-  background-size: contain;
-  background-attachment: scroll;
-  background-color: #fff;
+  min-height: 100vh;
+  width: 100vw;
+  background: url('bg/default.jpg') no-repeat center center fixed;
+  background-size: cover;
+  -webkit-background-size: cover;
+  -moz-background-size: cover;
+  -o-background-size: cover;
+  color: #333;
   text-align: center;
   transition: background-image 1s ease-in-out;
-  color: #333;
 }
-#game {
-  display: none;
-  max-width: 480px;
-  margin: 40px auto;
-  background: rgba(255,255,255,0.9);
-  border-radius: 15px;
-  padding: 20px;
-}
+
 #title {
   height: 100vh;
+  background: rgba(255, 255, 255, 0.1);
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  background: linear-gradient(to bottom, #87cefa, #b3e5ff);
   color: white;
+  text-shadow: 0 0 8px rgba(0,0,0,0.2);
 }
 #title h1 {
   font-size: 2.4em;
   animation: floatTitle 4s ease-in-out infinite;
-  text-shadow: 0 0 8px rgba(0,0,0,0.2);
 }
 @keyframes floatTitle {
   0%,100% { transform: translateY(0); }
@@ -59,17 +64,29 @@ body {
   0%,100% { transform: translateY(0); }
   50% { transform: translateY(8px); }
 }
+
+#game {
+  display: none;
+  max-width: 480px;
+  margin: 0 auto;
+  margin-top: 20px;
+  background: rgba(255,255,255,0.85);
+  border-radius: 15px;
+  padding: 20px;
+}
+
 button {
   background-color: #ffb84c;
   border: none;
   border-radius: 12px;
   color: white;
   padding: 10px 20px;
-  margin: 8px;
+  margin: 10px;
   cursor: pointer;
   font-size: 16px;
 }
 button:hover { background-color: #ffa733; }
+
 .stats {
   background: rgba(255,255,255,0.6);
   border-radius: 12px;
@@ -80,20 +97,17 @@ button:hover { background-color: #ffa733; }
 </head>
 <body>
 
-<!-- タイトル画面 -->
 <div id="title">
   <h1>しっかり！おこづかいライフ</h1>
   <button id="startBtn">はじめる！</button>
 </div>
 
-<!-- ゲーム画面 -->
 <div id="game">
   <p id="text"></p>
   <div id="choices"></div>
   <div class="stats" id="stats"></div>
 </div>
 
-<!-- 音声素材 -->
 <audio id="bgm-main" src="bgm/main.mp3" loop></audio>
 <audio id="bgm-event" src="bgm/event.mp3" loop></audio>
 <audio id="bgm-luxury" src="bgm/luxury.mp3" loop></audio>
@@ -109,8 +123,7 @@ let happy = 0;
 let specialGift = false;
 let switchBought = false;
 
-const months = ["4月","5月","7月","8月","12月"];
-const monthOrder = [4,5,7,8,12];
+const months = ["4月","5月","6月","7月","8月","9月","10月","11月","12月"];
 
 document.getElementById("startBtn").onclick = () => {
   playSe("click");
@@ -120,7 +133,6 @@ document.getElementById("startBtn").onclick = () => {
   startGame();
 };
 
-/* ===== 音管理 ===== */
 function playBgm(type){
   ["main","event","luxury"].forEach(id=>{
     const a=document.getElementById("bgm-"+id);
@@ -134,16 +146,18 @@ function playSe(id){
   if(s){ s.currentTime=0; s.play().catch(()=>{}); }
 }
 
-/* ===== 背景切替 ===== */
-function setBackground(type){
+/* 背景切替（4月と5月は専用、他はdefault） */
+function setSeasonBackground(month, eventType="normal"){
   let file;
-  if(month===4) file = (type==="event" ? "bg/4_event.jpg" : "bg/4.jpg");
-  else if(month===5) file = (type==="event" ? "bg/5_event.jpg" : "bg/5.jpg");
-  else file = "bg/default.jpg";
+  if(month===4 || month===5){
+    file = `bg/${month}${eventType==="event"?"_event":""}.jpg`;
+  } else {
+    file = `bg/default.jpg`;
+  }
   document.body.style.backgroundImage = `url('${file}')`;
 }
 
-/* ===== UI更新 ===== */
+/* テキストと選択肢の表示 */
 function show(text, choices=[]){
   const t=document.getElementById("text");
   const c=document.getElementById("choices");
@@ -155,42 +169,44 @@ function show(text, choices=[]){
     b.onclick=()=>{ playSe("click"); opt.action(); };
     c.appendChild(b);
   });
-  document.getElementById("stats").innerHTML=`📅${month}月<br>💰${money}円<br>😊幸福度:${happy}`;
+  document.getElementById("stats").innerHTML=`📅${months[month-4]}<br>💰${money}円<br>😊幸福度:${happy}`;
 }
 
-/* ===== ゲーム進行 ===== */
 function startGame(){
-  setBackground();
-  show("🌸4月になった！春がやってきた！\n新しい一年がはじまるよ！",[
-    {text:"次へ",action:monthlyEvent}
-  ]);
-}
-
-/* 月初イベント（ランダム） */
-function monthlyEvent(){
-  setBackground("event");
-  const r=Math.random();
-  let msg="";
-  if(r<0.2){money+=10000;happy+=10;msg="👨‍🦱おじさんが来て臨時お小遣い1万円！幸福度+10";}
-  else if(r<0.5){money+=500;happy+=5;msg="👮交番に財布を届けて500円！幸福度+5";}
-  else if(r<0.8){money+=1000;happy+=7;msg="👩ママを手伝って1000円もらえた！幸福度+7";}
-  else msg="特に何もなかった。";
-  show(msg,[{text:"お小遣いをもらう",action:monthlyAllowance}]);
-}
-
-/* 毎月お小遣い */
-function monthlyAllowance(){
-  money+=3000;
-  show("💰今月のお小遣い3000円をもらった！",[{
-    text:"どこへ行く？",action:chooseShop
+  show("🌸新しい1年がはじまります！\n計画的におこづかいを使ってしあわせな1年をめざそう！",[{
+    text:"スタート！", action:nextMonth
   }]);
 }
 
-/* お店選択 */
+/* 月初進行 */
+function nextMonth(){
+  if(month>12){endGame();return;}
+  setSeasonBackground(month);
+  show(`🌙 ${months[month-4]}になった！`,[{text:"月初イベントへ",action:randomEvent}]);
+}
+
+/* ランダムイベント */
+function randomEvent(){
+  const r=Math.random();
+  let msg="";
+  if(r<0.2){msg="👨‍🦱おじさんが臨時おこづかいをくれた！(+10000円,幸福度+10)";money+=10000;happy+=10;}
+  else if(r<0.5){msg="👮お財布を届けて500円もらった！(+500円,幸福度+5)";money+=500;happy+=5;}
+  else if(r<0.8){msg="👩ママのお手伝いをがんばって1000円！(+1000円,幸福度+7)";money+=1000;happy+=7;}
+  else {msg="特に何も起こらなかった。";}
+  show(msg,[{text:"お小遣いへ",action:monthlyAllowance}]);
+}
+
+/* お小遣い支給 */
+function monthlyAllowance(){
+  money+=3000;
+  show("💰今月のおこづかい3000円をもらった！",[{text:"どこへ行く？",action:chooseShop}]);
+}
+
+/* 買い物選択 */
 function chooseShop(){
-  show("🏙️どこに行く？",[
-    {text:"おもちゃ屋",action:toyShop},
-    {text:"デパート",action:departmentStore},
+  show("🏙️どこに行く？",[ 
+    {text:"おもちゃ屋へ",action:toyShop},
+    {text:"デパートへ",action:departmentStore},
     {text:"やめる",action:monthEvent}
   ]);
 }
@@ -209,7 +225,7 @@ function toyShop(){
 /* デパート */
 function departmentStore(){
   playBgm("event");
-  show("🛍️デパートに来た！",[ 
+  show("🛍️デパートに来た！",[
     {text:"かわいい服(5000円)",action:()=>buyItem("clothes",5000,10)},
     {text:"プリキュアのおもちゃ(2000円)",action:()=>buyItem("toy",2000,5)},
     {text:"プレゼント(3000円)",action:()=>buyItem("gift",3000,8)},
@@ -221,12 +237,9 @@ function departmentStore(){
 /* 購入処理 */
 function buyItem(name, price, happyPlus){
   if(money>=price){
-    money-=price;
-    happy+=happyPlus;
-    playSe("buy");
+    money-=price; happy+=happyPlus; playSe("buy");
     if(name==="switch")switchBought=true;
-    show(`🛒${price}円で${name==="switch"?"ニンテンドースイッチ":"アイテム"}を買った！幸福度+${happyPlus}`,
-         [{text:"戻る",action:chooseShop}]);
+    show(`🛒${price}円で${name==="switch"?"ニンテンドースイッチ":"アイテム"}を買った！幸福度+${happyPlus}`,[{text:"戻る",action:chooseShop}]);
   } else {
     playSe("end");
     show("💦お金が足りない…",[ {text:"戻る",action:chooseShop} ]);
@@ -235,79 +248,35 @@ function buyItem(name, price, happyPlus){
 
 /* 月イベント */
 function monthEvent(){
-  let msg="";
+  let msg="",eventType="normal";
   switch(month){
-    case 4:
-      setBackground("event");
-      money+=2000;
-      msg="🌸入学祝いで2000円もらった！";
-      break;
-    case 5:
-      setBackground("event");
-      show("💐母の日！カーネーション(2000円)を買いますか？",[
-        {text:"買う",action:()=>{
-          if(money>=2000){money-=2000;happy+=10;playSe("buy");
-            show("お母さんが喜んだ！幸福度+10",[ {text:"次の月へ",action:nextMonth} ]);
-          } else {
-            playSe("end");
-            show("💦お金が足りなかった…",[ {text:"次の月へ",action:nextMonth} ]);
-          }
-        }},
-        {text:"買わない",action:()=>{show("🤔ちょっと申し訳ない気持ちになった。",[ {text:"次の月へ",action:nextMonth} ]);}}
-      ]);
-      return;
-    case 7:
-      msg="🍦夏休み！アイスを食べる？(100円×3まで)";
-      setBackground();
-      happy+=3;
-      break;
-    case 8:
-      money+=20000;
-      happy+=5;
-      msg="💰臨時収入だ！なんと2万円！幸福度+5";
-      break;
-    case 12:
-      setBackground();
-      show("🎄クリスマス！欲しかったプレゼント(20000円)を買う？",[
-        {text:"買う",action:()=>{
-          if(money>=20000){money-=20000;happy+=50;specialGift=true;playBgm("luxury");
-            show("🎁夢がかなった！幸福度+50",[ {text:"エンディングへ",action:endGame} ]);
-          } else {
-            show("💦お金が足りなくて買えなかった…",[ {text:"エンディングへ",action:endGame} ]);
-          }
-        }},
-        {text:"買わない",action:endGame}
-      ]);
-      return;
+    case 4: money+=2000; msg="🌸入学祝いで2000円もらった！"; eventType="event"; break;
+    case 5: eventType="event"; show("💐母の日。カーネーションを買う？",[
+      {text:"買う（2000円）",action:()=>{ if(money>=2000){money-=2000;happy+=10;playSe("buy");show("お母さんが喜んでくれた！幸福度+10",[{
+        text:"次の月へ",action:()=>{month++;playBgm("main");nextMonth();}}]);} else {show("お金が足りない…",[{
+        text:"次の月へ",action:()=>{month++;playBgm("main");nextMonth();}}]);}}},
+      {text:"買わない",action:()=>{show("ちょっと申し訳ない気持ちに…",[{
+        text:"次の月へ",action:()=>{month++;playBgm("main");nextMonth();}}]);}}
+    ]); return;
+    case 8: money+=20000; msg="🏠祖父の家で臨時収入！20000円もらった！（デモ用）"; eventType="event"; break;
+    case 12: msg="🎄クリスマス！楽しい一年だった！"; eventType="event"; break;
+    default: msg="特に大きなイベントはなかった。"; break;
   }
-  show(msg,[{text:"次の月へ",action:nextMonth}]);
-}
-
-/* 月進行 */
-function nextMonth(){
-  const order = monthOrder;
-  const i = order.indexOf(month);
-  if(i===order.length-1){ endGame(); return; }
-  month = order[i+1];
-  playBgm("main");
-  setBackground();
-  show(`🌙 ${month}月になった！`,[{text:"月初イベントへ",action:monthlyEvent}]);
+  setSeasonBackground(month,eventType);
+  show(msg,[{text:"次の月へ",action:()=>{month++;playBgm("main");nextMonth();}}]);
 }
 
 /* エンディング */
 function endGame(){
   playBgm("luxury");
   playSe("end");
-  setBackground();
   let end="";
-  if(specialGift) end="🎁夢がかなった特別な一年！";
-  else if(switchBought) end="🎮スイッチライフエンド！";
-  else if(happy>=150 && money>=30000) end="🌟最高の一年！";
-  else if(happy>=150) end="😊しあわせいっぱいエンド！";
-  else if(money>=30000) end="💰しっかり貯めたエンド！";
-  else end="🌙ふつうの一年だったね。";
-  show(`🏁エンディング<br>${end}<br><br>💰${money}円<br>😊幸福度:${happy}`,
-       [{text:"もう一度あそぶ",action:()=>location.reload()}]);
+  if(switchBought)end="🎮スイッチライフエンド！";
+  else if(happy>=150 && money>=30000)end="🌟最高の一年！";
+  else if(happy>=150)end="😊しあわせいっぱいエンド！";
+  else if(money>=30000)end="💰しっかり貯めたエンド！";
+  else end="🌙ふつうの一年だった。";
+  show(`🏁エンディング<br>${end}<br><br>💰${money}円<br>😊幸福度:${happy}`,[{text:"もう一度あそぶ",action:()=>location.reload()}]);
 }
 </script>
 </body>
